@@ -43,7 +43,7 @@ Ao dividir o domínio aquático em uma malha de elementos, o MEF permite aproxim
 No projeto, o FreeFEM é usado para implementar o modelo de equações do mexilhão-dourado, considerando o transporte convectivo, a difusão e as interações biológicas (como crescimento e predação).
 
 ### Instalação do FreeFEM
-Para instalar o FreeFEM, consulte a [documentação oficial](https://freefem.org/download/). Ele está disponível para Windows, macOS e Linux.
+Para instalar o FreeFEM, consulte a [documentação oficial](https://doc.freefem.org/documentation/index.html). Ele está disponível para Windows, macOS e Linux.
 
 ---
 ## Experimentos Realizados

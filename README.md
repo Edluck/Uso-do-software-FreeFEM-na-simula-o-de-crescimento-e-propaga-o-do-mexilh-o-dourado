@@ -21,8 +21,8 @@ Este repositório contém o código e os arquivos necessários para a simulaçã
 
 ## Tecnologias Utilizadas
 - **[FreeFEM](https://freefem.org/)**: Software de código aberto para simulações numéricas com métodos de elementos finitos.
-- **Linguagem**: O código é escrito na linguagem de script própria do FreeFEM.
-- **Ferramentas de Visualização**: Os resultados podem ser visualizados e analisados em softwares como Paraview.
+- **Linguagem**: O código é escrito na linguagem de script própria do FreeFEM, FreeFem++.
+- **Ferramentas de Visualização**: Os resultados podem ser visualizados e analisados em softwares como **[Paraview](https://www.paraview.org/)**.
 
 ---
 

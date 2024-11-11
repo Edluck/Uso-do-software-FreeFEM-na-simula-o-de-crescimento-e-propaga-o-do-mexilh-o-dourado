@@ -11,8 +11,6 @@ Este repositório contém o código e os arquivos necessários para a simulaçã
 - [FreeFEM](#freefem)
 - [Configuração e Execução do Projeto](#configuração-e-execução-do-projeto)
 - [Experimentos Realizados](#experimentos-realizados)
-- [Como Contribuir](#como-contribuir)
-- [Licença](#licença)
 
 ---
 
@@ -58,6 +56,6 @@ Para instalar o FreeFEM, consulte a [documentação oficial](https://freefem.org
 - Instale o FreeFEM.
 - Clone este repositório:
   ```bash
-  git clone https://github.com/seu-usuario/seu-repositorio.git
-  cd seu-repositorio
+  git clone https://github.com/seu-usuario/seu-repositorio.git](https://github.com/Edluck/Uso-do-software-FreeFEM-na-simula-o-de-crescimento-e-propaga-o-do-mexilh-o-dourado.git
+  cd Uso-do-software-FreeFEM-na-simula-o-de-crescimento-e-propaga-o-do-mexilh-o-dourado.git
 

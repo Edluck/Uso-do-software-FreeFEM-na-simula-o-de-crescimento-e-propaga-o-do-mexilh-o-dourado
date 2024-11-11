@@ -50,6 +50,9 @@ No projeto, o FreeFEM é usado para implementar o modelo de equações do mexilh
 Para instalar o FreeFEM, consulte a [documentação oficial](https://freefem.org/download/). Ele está disponível para Windows, macOS e Linux.
 
 ---
+## Experimentos Realizados
+Observar a pasta Experimentos deste Git, Nele existe 4 experimentos com diferentes formatos de domínio, detalhado tanto no relatório final e no artigo aqui disponibilizados.
+---
 
 ## Configuração e Execução do Projeto
 ### Pré-requisitos

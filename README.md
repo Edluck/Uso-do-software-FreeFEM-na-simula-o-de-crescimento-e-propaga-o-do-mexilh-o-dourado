@@ -1,6 +1,6 @@
 # Modelagem da Propagação do Mexilhão-Dourado (*Limnoperna fortunei*) em Ambientes Aquáticos
 
-Este repositório contém o código e os arquivos necessários para a simulação da propagação do mexilhão-dourado em ambientes aquáticos usando o **FreeFEM** e o **Método dos Elementos Finitos (MEF)**. O objetivo do projeto é modelar e prever o comportamento e dispersão dessa espécie invasora em diferentes cenários de rios e lagos, permitindo insights para o controle e mitigação de sua invasão.
+Este repositório contém o código e os arquivos necessários para a simulação da propagação do mexilhão-dourado em ambientes aquáticos usando o **FreeFEM** e o **Método dos Elementos Finitos (MEF)**. O objetivo do projeto é modelar e prever o comportamento e dispersão dessa espécie invasora em diferentes cenários de rios e lagos.
 
 ---
 

@@ -5,7 +5,7 @@ Este repositório contém o código e os arquivos necessários para a simulaçã
 ---
 
 ## Índice
-- [Introdução](#introdução)
+- [Introdução/Resumo](#introdução-resumo)
 - [Tecnologias Utilizadas](#tecnologias-utilizadas)
 - [Método dos Elementos Finitos](#método-dos-elementos-finitos)
 - [FreeFEM](#freefem)
@@ -14,12 +14,8 @@ Este repositório contém o código e os arquivos necessários para a simulaçã
 
 ---
 
-## Introdução
-O mexilhão-dourado (*Limnoperna fortunei*) é uma espécie invasora que causa sérios danos ambientais e econômicos ao colonizar infraestruturas aquáticas, como barragens e sistemas de abastecimento de água. Este projeto visa modelar a propagação dessa espécie usando um sistema de equações diferenciais que leva em conta:
-- A densidade de larvas, mexilhões adultos e algas (principal fonte de alimento).
-- O fluxo do ambiente aquático, como a velocidade e direção da correnteza.
-  
-O modelo é resolvido numericamente usando o **Método dos Elementos Finitos (MEF)** implementado no software **FreeFEM**.
+## Introdução/Resumo
+- O mexilhão-dourado ({\it Limnoperna fortunei}), um molusco bivalve invasor nativo do sudeste asiático que adentrou o ecossistema Brasileiro, tem causado sérios danos ambientais e econômicos no Brasil, especialmente em rios que possuem hidroelétricas e/ou pisciculturas. A compreensão do ciclo de vida, da sua forma larval e adulta, e da interação desse organismo com seu principal alimento, a alga, é fundamental para o desenvolvimento de estratégias de controle e mitigação da população desse molusco, tendo em vista que medidas de controle atuais mostram-se ineficazes. Este subprojeto analisa essa relação por meio de um modelo matemático predador-presa, através da utilização do método dos elementos finitos via software FreeFEM, que soluciona equações diferenciais ordinárias 2D e 3D. As simulações visam investigar como diferentes combinações de parâmetros físicos do modelo influenciam a dispersão do mexilhão em diferentes ambientes criados para essas simulações e também como o uso de diferentes funções dentro do FreeFem podem influenciar na otimização do tempo de execução do algoritmo e na solução, contribuindo para o entendimento de sua dinâmica populacional e fornecendo subsídios para a elaboração de medidas de controle mais eficazes.
 
 ---
 

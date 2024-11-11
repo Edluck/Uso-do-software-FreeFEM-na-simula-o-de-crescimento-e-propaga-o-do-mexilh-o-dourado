@@ -1,0 +1,556 @@
+/*
+tarefa 0: fazer um glossário dos coeficientes das equações modelos
+tarefa 1: entender a como fazer a formulação variacional dos 3 modelos
+tarefa 2: entender o significado do que está sendo feito
+*/
+
+
+
+//Codigo FreeFem++ - Resolve o modelo predador-presa
+//Prof. Isaac P. Santos - 2022
+
+load "gmsh"             // Load the GMSH package in FreeFem++
+load "msh3"		// Load the 3Dmesh package in FreeFem++
+load "medit"
+load "tetgen"
+load "UMFPACK64"
+load "iovtk"
+
+//verbosity = 1;
+
+cout << "--- Criando malha 2D ---" << endl;
+
+int inflow = 11;
+int right = 12;
+int outflow = 13;
+int left = 14;
+int intRig = 15;
+int intLef = 16;
+int intFluid = 17;
+
+
+
+//             FORMATO DAS COORDENADAS D DOMINIO com rochas no caminho
+//                        12    34                 1- AR2 2-BR2 3-CR2 4-DR2      
+//  D ************************************** C
+//  K ************************************** L
+//    *                    *    *          * 
+//    *                    *    *          *
+//    *                    *    *          * 
+//  M *                  56******78        * N      5- ER2 6-FR2 7-GR2 8-HR2
+//    *    56***78                         *        5- ER1 6-FR1 7-GR1 8-HR1
+//    *      * *                           * 
+//    *      * *                           *
+//  I ************************************** J
+//  A ************************************** B
+//           1234                                   1- AR1 2-BR1 3-CR1 4-DR1
+//                          
+// investigar limite da camada do mexilhão com o tamanho do rio, essas proporçoes.
+real xA, yA, xB, yB, xC, yC, xD, yD; // coordenadas do vertice A
+real hAB, hBC, hCD, hDA;// comprimento dos lados do domínio(distancia euclidiana)
+real xI, yI, xJ, yJ, xK, yK, xL, yL; // coordenadas dos vertices I, J, K e L
+real xM, yM, xN, yN; // coordenadas dos vertices M e N
+real hIJ, hLK, hIA, hBJ, hJL, hKI, hLC, hDK,hMN; // comprimento dos lados do domínio(distancia euclidiana)
+
+//coordenadas das rochas
+real xAR1, yAR1, xBR1, yBR1, xCR1, yCR1, xDR1, yDR1, xER1, yER1, xFR1, yFR1, xGR1, yGR1, xHR1, yHR1;
+real hA2, h26, h67, h73, h3B, hI1, h15, h58, h84, h4J;
+real xAR2, yAR2, xBR2, yBR2, xCR2, yCR2, xDR2, yDR2, xER2, yER2, xFR2, yFR2, xGR2, yGR2, xHR2, yHR2;
+real hC3, h37, h76, h62, h2D, hL4, h48, h85, h51, h1K;
+
+xA = 0.0;
+yA = 0.0;
+
+xB = 30.0;
+yB = 0.0;
+
+xC = 30.0;
+yC = 2.0;
+
+xD = 0.0;
+yD = 2.0;
+
+xI = 0.0;
+yI = 0.1;
+
+xJ = 30.0;
+yJ = 0.1;
+
+xK = 0.0;
+yK = 1.9;
+
+xL = 30.0;
+yL = 1.9;
+//rochas 1
+xAR1 = 8.9;
+yAR1 = 0.1;
+
+xBR1 = 9.0;
+yBR1 = 0.0;
+
+xCR1 = 11.0;
+yCR1 = 0.0;
+
+xDR1 = 11.1;
+yDR1 = 0.1;
+
+xER1 = 8.9;
+yER1 = 0.8;
+
+xFR1 = 9.0;
+yFR1 = 0.7;
+
+xGR1 = 11.0;
+yGR1 = 0.7;
+
+xHR1 = 11.1;
+yHR1 = 0.8;
+
+//rocha 2
+
+xAR2 = 17.9;
+yAR2 = 1.9;
+
+xBR2 = 18.0;
+yBR2 = 2.0;
+
+xCR2 = 22.0;
+yCR2 = 2.0;
+
+xDR2 = 22.1;
+yDR2 = 1.9;
+
+xER2 = 17.9;
+yER2 = 1.2;
+
+xFR2 = 18.0;
+yFR2 = 1.3;
+
+xGR2 = 22.0;
+yGR2 = 1.3;
+
+xHR2 = 22.1;
+yHR2 = 1.2;
+
+//fluid
+
+xM = 1.0; yM = 1.0;
+xN = 29.0; yN = 1.0;
+
+
+border IA(t=0, 1){x = (xA - xI)*t + xI; y = (yA-yI)*t + yI; label = inflow;}
+//border AB(t=0, 1){x = (xB - xA)*t + xA; y = (yB-yA)*t + yA; label = right;}
+border BJ(t=0, 1){x = (xJ - xB)*t + xB; y = (yJ-yB)*t + yB; label = outflow;}
+//border JI(t=0, 1){x = (xI - xJ)*t + xJ; y = (yI-yJ)*t + yJ; label = intRig;}
+
+border KI(t=0, 1){x = (xI - xK)*t + xK; y = (yI-yK)*t + yK; label = inflow;}
+//border IJ(t=0, 1){x = (xJ - xI)*t + xI; y = (yJ-yI)*t + yI; label = intRig;}
+border JL(t=0, 1){x = (xL - xJ)*t + xJ; y = (yL-yJ)*t + yJ; label = outflow;}
+//border LK(t=0, 1){x = (xK - xL)*t + xL; y = (yK-yL)*t + yL; label = intLef;}
+
+border DK(t=0, 1){x = (xK - xD)*t + xD; y = (yK-yD)*t + yD; label = inflow;}
+//border KL(t=0, 1){x = (xL - xK)*t + xK; y = (yL-yK)*t + yK; label = intLef;}
+border LC(t=0, 1){x = (xC - xL)*t + xL; y = (yC-yL)*t + yL; label = outflow;}
+//border CD(t=0, 1){x = (xD - xC)*t + xC; y = (yD-yC)*t + yC; label = left;}
+
+border BC(t=0, 1){x = (xC - xB)*t + xB; y = (yC-yB)*t + yB; label = outflow;}
+border DA(t=0, 1){x = (xA - xD)*t + xD; y = (yA-yD)*t + yD; label = inflow;}
+
+border MN(t=0, 1){x = (xN - xM)*t + xM; y = (yN-yM)*t + yM; label = intFluid;}
+
+//border das rochas 1 e 2
+//1
+border bA2(t=0, 1){x = (xBR1 - xA)*t + xA; y = (yBR1-yA)*t + yA; label = right;}
+border b26(t=0, 1){x = (xFR1 - xBR1)*t + xBR1; y = (yFR1-yBR1)*t + yBR1; label = right;}
+border b67(t=0, 1){x = (xGR1 - xFR1)*t + xFR1; y = (yGR1-yFR1)*t + yFR1; label = right;}
+border b73(t=0, 1){x = (xCR1 - xGR1)*t + xGR1; y = (yCR1-yGR1)*t + yGR1; label = right;}
+border b3B(t=0, 1){x = (xB - xCR1)*t + xCR1; y = (yB-yCR1)*t + yCR1; label = right;}
+
+border bI1(t=0, 1){x = (xAR1 - xI)*t + xI; y = (yAR1-yI)*t + yI; label = intRig;}
+border b15(t=0, 1){x = (xER1 - xAR1)*t + xAR1; y = (yER1-yAR1)*t + yAR1; label = intRig;}
+border b58(t=0, 1){x = (xHR1 - xER1)*t + xER1; y = (yHR1-yER1)*t + yER1; label = intRig;}
+border b84(t=0, 1){x = (xDR1 - xHR1)*t + xHR1; y = (yDR1-yHR1)*t + yHR1; label = intRig;}
+border b4J(t=0, 1){x = (xJ - xDR1)*t + xDR1; y = (yJ-yDR1)*t + yDR1; label = intRig;}
+//2
+border bC3(t=0, 1){x = (xCR2 - xC)*t + xC; y = (yCR2-yC)*t + yC; label = left;}
+border b37(t=0, 1){x = (xGR2 - xCR2)*t + xCR2; y = (yGR2-yCR2)*t + yCR2; label = left;}
+border b76(t=0, 1){x = (xFR2 - xGR2)*t + xGR2; y = (yFR2-yGR2)*t + yGR2; label = left;}
+border b62(t=0, 1){x = (xBR2 - xFR2)*t + xFR2; y = (yBR2-yFR2)*t + yFR2; label = left;}
+border b2D(t=0, 1){x = (xD - xBR2)*t + xBR2; y = (yD-yBR2)*t + yBR2; label = left;}
+
+border bL4(t=0, 1){x = (xDR2 - xL)*t + xL; y = (yDR2-yL)*t + yL; label = intLef;}
+border b48(t=0, 1){x = (xHR2 - xDR2)*t + xDR2; y = (yHR2-yDR2)*t + yDR2; label = intLef;}
+border b85(t=0, 1){x = (xER2 - xHR2)*t + xHR2; y = (yER2-yHR2)*t + yHR2; label = intLef;}
+border b51(t=0, 1){x = (xAR2 - xER2)*t + xER2; y = (yAR2-yER2)*t + yER2; label = intLef;}
+border b1K(t=0, 1){x = (xK - xAR2)*t + xAR2; y = (yK-yAR2)*t + yAR2; label = intLef;}
+
+//comprimento dos lados do domínio(distancia euclidiana)
+hIA = ceil(sqrt((yI-yA)^2 + (xI-xA)^2));
+//hAB = sqrt((yA-yB)^2 + (xA-xB)^2);
+hBJ = ceil(sqrt((yJ-yB)^2 + (xJ-xB)^2));
+
+hKI = ceil(sqrt((yK-yI)^2 + (xK-xI)^2));
+//hIJ = sqrt((yI-yJ)^2 + (xI-xJ)^2);
+hJL = ceil(sqrt((yJ-yL)^2 + (xJ-xL)^2));
+
+hDK = ceil(sqrt((yK-yD)^2 + (xK-xD)^2));
+//hLK = sqrt((yK-yL)^2 + (xK-xL)^2);
+hLC = ceil(sqrt((yC-yL)^2 + (xC-xL)^2));
+//hCD = sqrt((yD-yC)^2 + (xD-xC)^2);
+
+hBC = ceil(sqrt((yB-yC)^2 + (xB-xC)^2));
+hDA = ceil(sqrt((yD-yA)^2 + (xD-xA)^2));
+
+hMN = ceil( sqrt( (yN-yM)^2 + (xN-xM)^2 ) );
+
+//comprimento das bordas das rochasA
+//1
+hA2 = ceil(sqrt((yBR1-yA)^2 + (xBR1-xA)^2));
+h26 = ceil(sqrt((yFR1-yBR1)^2 + (xFR1-xBR1)^2));
+h67 = ceil(sqrt((yGR1-yFR1)^2 + (xGR1-xFR1)^2));
+h73 = ceil(sqrt((yCR1-yGR1)^2 + (xCR1-xGR1)^2));
+h3B = ceil(sqrt((yB-yCR1)^2 + (xB-xCR1)^2));
+
+hI1 = ceil(sqrt((yAR1-yI)^2 + (xAR1-xI)^2));
+h15 = ceil(sqrt((yER1-yAR1)^2 + (xER1-xAR1)^2));
+h58 = ceil(sqrt((yHR1-yER1)^2 + (xHR1-xER1)^2));
+h84 = ceil(sqrt((yDR1-yHR1)^2 + (xDR1-xHR1)^2));
+h4J = ceil(sqrt((yJ-yDR1)^2 + (xJ-xDR1)^2));
+//2
+hC3 = ceil(sqrt((yCR2-yC)^2 + (xCR2-xC)^2));
+h37 = ceil(sqrt((yGR2-yCR2)^2 + (xGR2-xCR2)^2));
+h76 = ceil(sqrt((yFR2-yGR2)^2 + (xFR2-xGR2)^2));
+h62 = ceil(sqrt((yBR2-yFR2)^2 + (xBR2-xFR2)^2));
+h2D = ceil(sqrt((yD-yBR2)^2 + (xD-xBR2)^2));
+
+hL4 = ceil(sqrt((yDR2-yL)^2 + (xDR2-xL)^2));
+h48 = ceil(sqrt((yHR2-yDR2)^2 + (xHR2-xDR2)^2));
+h85 = ceil(sqrt((yER2-yHR2)^2 + (xER2-xHR2)^2));
+h51 = ceil(sqrt((yAR2-yER2)^2 + (xAR2-xER2)^2));
+h1K = ceil(sqrt((yK-yAR2)^2 + (xK-xAR2)^2));
+
+int nbseg1 = 10;
+int nbseg2 = 20;
+mesh Th2D = buildmesh(BC(nbseg1*hBC) + DA(nbseg1*hDA) + bA2(nbseg2*hA2) + b26(nbseg2*h26) + b67(nbseg2*h67)
+                    + b73(nbseg2*h73) + b3B(nbseg2*h3B) + bC3(nbseg2*hC3) + b37(nbseg2*h37) + b76(nbseg2*h76)
+                    + b62(nbseg2*h62) + b2D(nbseg2*h2D) + bI1(nbseg2*hI1) + b15(nbseg2*h15) + b58(nbseg2*h58)
+                    + b84(nbseg2*h84) + b4J(nbseg2*h4J) + bL4(nbseg2*hL4) + b48(nbseg2*h48) + b85(nbseg2*h85)
+                    + b51(nbseg2*h51) + b1K(nbseg2*h1K) + MN(4*hMN), nbvx = 8000);
+
+//int[int] regs = regions(Th2D);
+//cout << "region labels: " << regs << endl;
+int agua = Th2D(0.5, 1.0).region;
+//cout << "agua: " << agua << endl;
+
+/* 
+int nbseg = 5;
+mesh Th2D = buildmesh(BC(nbseg*hBC) + DA(nbseg*hDA) + bA2(nbseg*hA2) + b26(nbseg*h26) + b67(nbseg*h67)
+                    + b73(nbseg*h73) + b3B(nbseg*h3B) + bC3(nbseg*hC3) + b37(nbseg*h37) + b76(nbseg*h76)
+                    + b62(nbseg*h62) + b2D(nbseg*h2D), nbvx = 5000);
+*/
+//mesh Th2D = buildmesh(AB(nbseg*hAB) + BJ(3*hBJ) + JL(nbseg*hJL) + LC(3*hLC) + CD(nbseg*hCD) + DK(3*hDK) + KI(nbseg*hKI) + IA(3*hIA) + IJ(nbseg*hIJ) + KL(nbseg*hLK), nbvx = 5000);
+
+int[int] regs = regions(Th2D); //
+cout << "region labels: " << regs << endl;
+
+plot(Th2D, wait = true);
+
+//==============================================================
+//  Macros
+//==============================================================
+macro Laplacian(u) (dxx(u) + dyy(u)) //EOM
+
+macro Grad(w) [dx(w),dy(w)]// EOM
+macro div(w1,w2) (dx(w1)+dy(w2))// EOM
+
+macro ugrad(v1,v2,w) (v1*dx(w)+v2*dy(w))// EOM
+macro UGradU(v1,v2,w1,w2) [ugrad(v1,v2,w1),ugrad(v1,v2,w2)]// EOM
+
+macro normL2(u1,u2) ( sqrt( int2d(Th2D)( square(u1) + square(u2) ) ) ) //EOM
+
+//==============================================================
+//  Espacos de funcoes para Navier-Stokes
+//==============================================================
+
+fespace Xh(Th2D, P2); //espaco para velocidades
+fespace Mh(Th2D, P1); //espaco para pressao
+
+Xh u1, u2, v1, v2;
+Xh up1, up2, u1plot, u2plot;
+Xh eu1,eu2;
+Xh f1, f2;
+Mh p, q;
+
+int jj;
+real epsp, h, nu, t, tFinal, dtNS, alpha, error;
+
+// Parameters
+nu = 1e-3; //1.0;
+dtNS = 0.05;
+tFinal = 1500.0*dtNS;
+epsp = 1e-8;
+alpha = 1/dtNS;
+string teste = "Teste_20_05", vtuVelocity, vtuLarva, vtuMexilhao, vtuAlga;
+
+problem NavierStokes(u1, u2, p, v1, v2, q)
+          = int2d(Th2D)(
+             alpha*(u1*v1 + u2*v2) +
+             //termo viscoso nu(Gradu, Gradv)
+             nu*(
+                  Grad(u1)'*Grad(v1) //dx(u1)*dx(v1) + dy(u1)*dy(v1) + dz(u1)*dz(v1)
+                + Grad(u2)'*Grad(v2) //dx(u2)*dx(v2) + dy(u2)*dy(v2) + dz(u2)*dz(v2)
+             )
+             //termo -p div(v)
+              -p*div(v1,v2)
+             //termo -q div(u)
+             -q*div(u1,u2)
+             //termo penalidade: -eps*p*q
+             -epsp*p*q
+          )
+//lado direito - termo CONVECT
+        - int2d(Th2D)(f1*v1 + f2*v2)
+        + int2d(Th2D)(
+             - alpha*convect([up1,up2],-dtNS,up1)*v1
+             - alpha*convect([up1,up2],-dtNS,up2)*v2
+          )
+            //condicoes de contorno (1 m/s ~ 0.01 hm/s)
+            + on(inflow, u1 = 0.2,  u2 = 0.0) //fronteira de entrada
+            + on(right, u1 = 0,  u2 = 0) //fronteira a direita 
+            + on(left, u1 = 0,  u2 = 0); //fronteira a esquerda 
+
+
+u1 = 0.0;
+u2 = 0.0;
+
+f1 = 0.0;
+f2 = 0.0;
+
+cout << "\n Calculando campo de velocidade!" << endl;
+
+//Loop no tempo
+error = 100.0;
+jj = 0;
+t = 0;
+
+while(error > 1e-3 && t <=tFinal){
+	jj++;
+	
+   t += dtNS;
+   //cout << "\n Iteration " << jj << " t = " << t << endl;
+
+   up1 = u1;
+   up2 = u2;
+
+   NavierStokes;
+
+	eu1 = up1-u1;
+	eu2 = up2-u2;
+
+	error = normL2(eu1,eu2);
+	cout << "\n My Error L2: " << error << endl;
+	
+   cout << "\n Error x infty: " << eu1[].linfty << endl;
+	cout << "\n Error y infty: " << eu2[].linfty << endl;
+
+}
+
+u1plot = u1;
+u2plot = u2;
+int[int] Order = [1];
+vtuVelocity = "Paraview_Velocity_"+teste+".vtu";
+savevtk(vtuVelocity, Th2D, [u1plot,u2plot], dataname="velocity", order=Order, bin=0);
+cout << "\n Campo de velocidade calculado!" << endl;
+
+//==============================================================
+//Espacos de funcoes (elementos finitos)
+//==============================================================
+
+fespace Vh(Th2D, P2); //espaco de funcoes para L e A
+
+Vh A, Aant, Ainic, v;
+Vh L, Linic, Lant;
+Vh M, Mant, Minic, w;
+
+real Tf = 360; 
+real dt = 0.01;
+int iterMax = Tf/dt;
+int iterNonLinear = 5;
+
+// Transformação: 
+// 1 m2/h = 24 m2/dia
+// 1 m2/dia = 1e-6 km2/dia = 1e-4 hm2/dia
+real DifL = 0.012*1e-4; // Referência 0.012 m2/dia van de Koppel et al (2005)
+real DifA = 1.2*1e-4; // Referência 1.2 m2/dia Cangelosi et al (2015)
+real DifM = 0.0012*1e-4; // Referência 0.0012 m2/dia Montresor (2014)
+
+real lambdaL = 0.03; //0.025; //(1/dia)  //taxa de maturacao da larva
+real lambdaM = 0.03; //0.03*1e-2; //0.025*1e-2; //(km/dia: 1e-3 ~ hm/dia: 1e-2) //taxa de maturacao da mexilhao
+
+// Transformação: 
+// 1 g/l = 1 kg/m3 = 1e9 kg/km3 = 1e6 kg/hm3
+real Kalg = 0.01*1e6;  //capacidade de suporte da alga
+real Kmex = 1.732*1e4; //(kg/km2: 1e6 ~ kg/hm2: 1e4)
+real Klar = 20.0*1e6; 
+real r1 = 0.07*1e2; //0.05*1e2; //(1/(km*dia): 1e3 ~ 1/(hm*dia): 1e2)
+real r2 = 0.12; // (1/dia)  //taxa de crescimento da alga
+real b1 = 0.015; //(1/dia)
+real b2 = 0.002; //(1/dia)
+real b3 = 0.05; //0.02; //(1/(km*dia): 1 ~ 1/(hm*dia): 1e-1)  //taxa mortalidade da alga
+real c1 = 0.001*1e6; //(kg/km3: 1e9 ~ kg/hm3: 1e6)
+real c2 = 0.001*1e6; //(kg/km3: 1e9 ~ kg/hm3: 1e6)
+
+// Transformação: 1 m/s = 86400 m/dia = 86.4 km/dia = 864 hm/dia)
+Vh velx = u1*864;  //velocidade em x
+Vh vely = u2*864;  //velocidade em y
+
+//Definindo o numero de Peclet --- SUPG
+real normVinf = max(velx[].linfty,vely[].linfty);
+//real normVeuc = sqrt(velx^2 + vely^2);
+Vh hK = hTriangle;
+Vh PeKLarva = normVinf*hK/(2.0*DifL);
+real PecletLarva = PeKLarva[].max;
+Vh PeKAlga = normVinf*hK/(2.0*DifA);
+real PecletAlga = PeKAlga[].max;
+Vh tauSupgL = hTriangle*DifL/(2.0*normVinf);
+Vh tauSupgA = hTriangle*DifA/(2.0*normVinf);
+int iter, ii;
+
+problem Larva(L,v) = int2d(Th2D)(L*v/dt) 
+                    - int2d(Th2D)(Lant*v/dt)
+                    + int2d(Th2D)(DifL*Grad(L)'*Grad(v))
+                    + int2d(Th2D)((velx*dx(L) + vely*dy(L))*v)
+                    //metodo de difusao artificial classica
+                    + int2d(Th2D)(1e-3*normVinf*hTriangle*Grad(L)'*Grad(v))
+                   //lado direito
+                    - int2d(Th2D)( (r1*Mant*(1.0 - Lant/Klar))*v - (b1+lambdaL)*Lant*v )
+                    + on(inflow, L = 0.08*1e6);
+
+problem Mexilhao(M,w) = int2d(Th2D)(M*w/dt) 
+                    - int2d(Th2D)(Mant*w/dt)
+                    + int2d(Th2D)(DifM*Grad(M)'*Grad(w))
+                   //lado direito
+                    - int2d(Th2D)(lambdaM*Lant*(Aant^2/(c1^2 + Aant^2))*(1.0 - Mant/Kmex)*w  - b2*Mant*w)
+                    + on(inflow, M = 0.0) + on(outflow, M = 0.0) + on(intRig, M = 0.0) + on(intLef, M = 0.0) + on(intFluid, M = 0.0);
+                            
+problem Alga(A,v) = int2d(Th2D)(A*v/dt) 
+                    - int2d(Th2D)(Aant*v/dt)
+                    + int2d(Th2D)(DifA*Grad(A)'*Grad(v))
+                    + int2d(Th2D)((velx*dx(A) + vely*dy(A))*v)
+                    //metodo de difusao artificial classica
+                    + int2d(Th2D)(1e-3*normVinf*hTriangle*Grad(A)'*Grad(v))
+                   //lado direito
+                    - int2d(Th2D)( (r2*Aant*(1.0 - Aant/Kalg))*v - b3*(Aant^2/(c2^2 + Aant^2))*Mant*v )
+                    + on(inflow, A = 0.006*1e6);
+
+//condicoes iniciais
+
+Ainic = 0.001*1e6;
+Minic = 1*1e4;
+Linic = 0.02*1e6;
+
+for (ii = 0; ii <  Th2D.nt; ii++){
+	if (Th2D[ii].label == agua){
+		if (Th2D[ii][0].label == 0){
+			Minic[][Vh(ii,0)] = 0.0;
+		}
+		if (Th2D[ii][1].label == 0){
+			Minic[][Vh(ii,1)] = 0.0;
+		}
+		if (Th2D[ii][2].label == 0){
+			Minic[][Vh(ii,2)] = 0.0;
+		}
+	}
+}
+
+M = Minic;
+A = Ainic;
+L = Linic;
+
+savevtk("Paraview_Larva_Inicial.vtu", Th2D, Linic, dataname="Larva", order=Order, bin=0);
+savevtk("Paraview_Mexilhao_Inicial.vtu", Th2D, Minic, dataname="Mexilhao", order=Order, bin=0);
+savevtk("Paraview_Alga_Inicial.vtu", Th2D, Ainic, dataname="Alga", order=Order, bin=0);
+
+
+//Erros
+string ArqAlgaParaview, ArqLarvaParaview, ArqMexilhaoParaview;
+real erroM, erroA, erroL, erroMax;
+Vh  erA, erL, erM;
+Vh Aplot, Mplot, Lplot;
+
+erroMax = pow(10.0,-3.0);
+erroM = erroMax + 1.0;
+erroA = erroMax + 1.0;
+erroL = erroMax + 1.0;
+iter = 1;
+
+cout << "\n Calculando Sistema Larva-Mexilhao-Alga!" << endl;
+for(iter = 1; iter <= iterMax; iter++){
+	
+   for(jj = 0; jj < iterNonLinear; jj++){
+
+      for (ii = 0; ii <  Th2D.nt; ii++){
+	      if (Th2D[ii].label == agua){
+	   	   if (Th2D[ii][0].label == 0){
+	   		   M[][Vh(ii,0)] = 0.0;
+	   	   }
+	   	   if (Th2D[ii][1].label == 0){
+	   		   M[][Vh(ii,1)] = 0.0;
+	   	   }
+	   	   if (Th2D[ii][2].label == 0){
+	   		   M[][Vh(ii,2)] = 0.0;
+	   	   }
+	      }
+      }
+
+       Mant = M;
+       Aant = A;
+       Lant = L;
+		
+       Larva;
+       Mexilhao;
+       Alga;
+   }
+       //cout << "--- Iteracao temporal = " << iter << endl;
+       iter++;
+
+       //Calculo dos erros
+       erM = M - Mant;
+       erA = A - Aant;
+       erL = L - Lant;
+       erroM = erM[].linfty/M[].linfty;
+       erroA = erA[].linfty/A[].linfty;
+       erroL = erL[].linfty/L[].linfty;
+      
+       if(fmod(iter, 10) == 0){
+          cout << "--- Iteracao temporal = " << iter << endl;
+          cout << "--- Erro relativo norma infinito -- MEXILHAO = " << erroM << endl;
+          cout << "--- Erro relativo norma infinito -- ALGAS = " << erroA << endl;
+          cout << "--- Erro relativo norma infinito -- LARVAS = " << erroL << endl;
+       }
+
+   if((iter % 3000) == 0){
+      Aplot = A*1e-6; // voltar g/l
+      Mplot = M*1e-4; // g/m2
+      Lplot = L*1e-6; // voltar g/l
+      ArqLarvaParaview = "Paraview_Larva_"+teste+"_Passo"+iter+".vtu";
+      ArqMexilhaoParaview = "Paraview_Mexilhao_"+teste+"_Passo"+iter+".vtu";
+      ArqAlgaParaview = "Paraview_Alga_"+teste+"_Passo"+iter+".vtu";
+      savevtk(ArqLarvaParaview, Th2D, Lplot, dataname="Larva", order=Order, bin=0);
+      savevtk(ArqMexilhaoParaview, Th2D, Mplot, dataname="Mexilhao", order=Order, bin=0);
+      savevtk(ArqAlgaParaview, Th2D, Aplot, dataname="Alga", order=Order, bin=0);
+   }
+}
+
+//cout << "--- IterMax = " << iterMax << endl;
+//cout << "Peclet Larvas: " << PecletLarva << endl;
+//cout << "Peclet Algas: " << PecletAlga << endl;
+
+Aplot = A*1e-6; // voltar g/l
+Mplot = M*1e-4; // g/m2
+Lplot = L*1e-6; // voltar g/l
+
+//int[int] Order = [1];
+savevtk("Paraview_Larva_Final.vtu", Th2D, Lplot, dataname="Larva", order=Order, bin=0);
+savevtk("Paraview_Mexilhao_Final.vtu", Th2D, Mplot, dataname="Mexilhao", order=Order, bin=0);
+savevtk("Paraview_Alga_Final.vtu", Th2D, Aplot, dataname="Alga", order=Order, bin=0);
+cout << "\n Fim do calculo do sistema Larva-Mexilhao-Alga!" << endl;

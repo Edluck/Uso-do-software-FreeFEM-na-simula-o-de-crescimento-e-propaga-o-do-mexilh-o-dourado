@@ -1,0 +1,5 @@
+Argumentos utilizados para solver iterativo:
+problem Larva(L,v, solver=GMRES, eps = 1e-5, tgv = 1e30, dimKrylov = 30);
+
+Solver direito:
+problem Larva(L,v); // Utiliza ou SPARSESOLVER ou LU.

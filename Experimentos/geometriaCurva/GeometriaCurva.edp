@@ -1,0 +1,381 @@
+
+load "iovtk"
+
+cout << "--- Criando malha 2D ---" << endl;
+
+int inflow = 11;
+int right = 12;
+int outflow = 13;
+int left = 14;
+int intRig = 15;
+int intLef = 16;
+int intFluid = 17;
+/*
+Colocar um Vy de forma que o ângulo seja de pi/15
+*/
+
+//       FORMATO DAS COORDENADAS D DOMINIO
+//                                     
+//  D ************************************** C
+//    *                                    * 
+//  K *                                    * L
+//    *                                    *
+//    *                                    * 
+//  M *                                    * N 
+//    *                                    *
+//    *                                    *
+//  I *                                    * J
+//    *                                    *
+//    *                                    *
+//  A ************************************** B
+//                                     
+
+real xA, yA, xB, yB, xC, yC, xD, yD;
+real hAB, hBC, hCD, hDA;
+real xI, yI, xJ, yJ, xK, yK, xL, yL;
+real xM, yM, xN, yN;
+real hIJ, hKL, hMN;
+
+xA = 0.0; yA = 0.0;
+xB = 30.0; yB = 0.0;
+xC = 30.0; yC = 2.0;
+xD = 0.0; yD = 2.0;
+xI = 0.0; yI = 0.1;
+xJ = 30.0; yJ = 0.1;
+xK = 0.0; yK = 1.9;
+xL = 30.0; yL = 1.9;
+xM = 1.0; yM = 1.0;
+xN = 29.0; yN = 1.0;
+
+border BC(t=0, 1){x = (xC - xB)*t + xB; y = (yC-yB)*t + yB; label = outflow;}
+border DA(t=0, 1){x = (xA - xD)*t + xD; y = (yA-yD)*t + yD; label = inflow;}
+
+real amplitude = 3.0;
+real period = 30.0;
+
+//senoide y = A.sin(wt) ; w = 2.pi/T
+border AB(t=xA, xB){x = t; y = amplitude*sin(2*pi*t/period) + yA; label = right;}
+border IJ(t=xI, xJ){x = t; y = amplitude*sin(2*pi*t/period) + yI; label = intRig;}
+border MN(t=xM, xN){x = t; y = amplitude*sin(2*pi*t/period) + yM; label = intFluid;}
+border KL(t=xK, xL){x = t; y = amplitude*sin(2*pi*t/period) + yK; label = intLef;}
+border CD(t=xC, xD){x = t; y = amplitude*sin(2*pi*t/period) + yC; label = left;}
+
+
+//comprimento dos lados do domínio
+hAB = ceil( sqrt( (yB-yA)^2 + (xB-xA)^2 ) );
+hBC = ceil( sqrt( (yC-yB)^2 + (xC-xB)^2 ) );
+hCD = ceil( sqrt( (yD-yC)^2 + (xD-xC)^2 ) );
+hDA = ceil( sqrt( (yA-yD)^2 + (xA-xD)^2 ) );
+hIJ = ceil( sqrt( (yJ-yI)^2 + (xJ-xI)^2 ) );
+hKL = ceil( sqrt( (yL-yK)^2 + (xL-xK)^2 ) );
+hMN = ceil( sqrt( (yN-yM)^2 + (xN-xM)^2 ) );
+
+int nbseg1 = 10;
+int nbseg2 = 30;
+mesh Th2D = buildmesh(AB(nbseg2*hAB) + BC(nbseg1*hBC) + CD(nbseg2*hCD) + DA(nbseg1*hDA) + IJ(nbseg1*hIJ) + KL(nbseg1*hKL) + MN(2*hMN), nbvx = 10000);
+
+//int[int] regs = regions(Th2D);
+//cout << "region labels: " << regs << endl;
+int agua = Th2D(0.5, 1.0).region;
+//cout << "agua: " << agua << endl;
+plot(Th2D, wait = true);
+
+//==============================================================
+//  Macros
+//==============================================================
+macro Laplacian(u) (dxx(u) + dyy(u)) //EOM
+
+macro Grad(w) [dx(w),dy(w)]// EOM
+macro div(w1,w2) (dx(w1)+dy(w2))// EOM
+
+macro ugrad(v1,v2,w) (v1*dx(w)+v2*dy(w))// EOM
+macro UGradU(v1,v2,w1,w2) [ugrad(v1,v2,w1),ugrad(v1,v2,w2)]// EOM
+
+macro normL2(u1,u2) ( sqrt( int2d(Th2D)( square(u1) + square(u2) ) ) ) //EOM
+
+//==============================================================
+//  Espacos de funcoes para Navier-Stokes
+//==============================================================
+
+fespace Xh(Th2D, P2); //espaco para velocidades
+fespace Mh(Th2D, P1); //espaco para pressao
+
+Xh u1, u2, v1, v2;
+Xh up1, up2, u1plot, u2plot;
+Xh eu1,eu2;
+Xh f1, f2;
+Mh p, q;
+
+int jj;
+real epsp, h, nu, t, tFinal, dtNS, alpha, error;
+
+// Parameters
+nu = 1e-3; //1.0;
+dtNS = 0.05;
+tFinal = 1500.0*dtNS;
+epsp = 1e-8;
+alpha = 1/dtNS;
+string teste = "Teste_20_05", vtuVelocity, vtuLarva, vtuMexilhao, vtuAlga;
+
+problem NavierStokes(u1, u2, p, v1, v2, q)
+          = int2d(Th2D)(
+             alpha*(u1*v1 + u2*v2) +
+             //termo viscoso nu(Gradu, Gradv)
+             nu*(
+                  Grad(u1)'*Grad(v1) //dx(u1)*dx(v1) + dy(u1)*dy(v1) + dz(u1)*dz(v1)
+                + Grad(u2)'*Grad(v2) //dx(u2)*dx(v2) + dy(u2)*dy(v2) + dz(u2)*dz(v2)
+             )
+             //termo -p div(v)
+              -p*div(v1,v2)
+             //termo -q div(u)
+             -q*div(u1,u2)
+             //termo penalidade: -eps*p*q
+             -epsp*p*q
+          )
+//lado direito - termo CONVECT
+        - int2d(Th2D)(f1*v1 + f2*v2)
+        + int2d(Th2D)(
+             - alpha*convect([up1,up2],-dtNS,up1)*v1
+             - alpha*convect([up1,up2],-dtNS,up2)*v2
+          )
+            //condicoes de contorno (1 m/s ~ 0.01 hm/s)
+            + on(inflow, u1 = 0.2,  u2 = 0) //fronteira de entrada
+            + on(right, u1 = 0,  u2 = 0) //fronteira a direita 
+            + on(left, u1 = 0,  u2 = 0); //fronteira a esquerda 
+
+
+u1 = 0.0;
+u2 = 0.0;
+
+f1 = 0.0;
+f2 = 0.0;
+
+cout << "\n Calculando campo de velocidade!" << endl;
+
+//Loop no tempo
+error = 100.0;
+jj = 0;
+t = 0;
+
+while(error > 1e-3 && t <=tFinal){
+	jj++;
+	
+   t += dtNS;
+   //cout << "\n Iteration " << jj << " t = " << t << endl;
+
+   up1 = u1;
+   up2 = u2;
+
+   NavierStokes;
+
+	eu1 = up1-u1;
+	eu2 = up2-u2;
+
+	error = normL2(eu1,eu2);
+	cout << "\n My Error L2: " << error << endl;
+	
+   cout << "\n Error x infty: " << eu1[].linfty << endl;
+	cout << "\n Error y infty: " << eu2[].linfty << endl;
+
+}
+
+u1plot = u1;
+u2plot = u2;
+int[int] Order = [1];
+vtuVelocity = "Paraview_Velocity_"+teste+".vtu";
+savevtk(vtuVelocity, Th2D, [u1plot,u2plot], dataname="velocity", order=Order, bin=0);
+cout << "\n Campo de velocidade calculado!" << endl;
+
+//==============================================================
+//Espacos de funcoes (elementos finitos)
+//==============================================================
+
+fespace Vh(Th2D, P2); //espaco de funcoes para L e A
+
+Vh A, Aant, Ainic, v;
+Vh L, Linic, Lant;
+Vh M, Mant, Minic, w;
+
+real Tf = 360; 
+real dt = 0.01;
+int iterMax = Tf/dt;
+int iterNonLinear = 5;
+
+// Transformação: 
+// 1 m2/h = 24 m2/dia
+// 1 m2/dia = 1e-6 km2/dia = 1e-4 hm2/dia
+real DifL = 0.012*1e-4; // Referência 0.012 m2/dia van de Koppel et al (2005)
+real DifA = 1.2*1e-4; // Referência 1.2 m2/dia Cangelosi et al (2015)
+real DifM = 0.0012*1e-4; // Referência 0.0012 m2/dia Montresor (2014)
+
+real lambdaL = 0.03; //0.025; //(1/dia)  //taxa de maturacao da larva
+real lambdaM = 0.03; //0.03*1e-2; //0.025*1e-2; //(km/dia: 1e-3 ~ hm/dia: 1e-2) //taxa de maturacao da mexilhao
+
+// Transformação: 
+// 1 g/l = 1 kg/m3 = 1e9 kg/km3 = 1e6 kg/hm3
+real Kalg = 0.01*1e6;  //capacidade de suporte da alga
+real Kmex = 1.732*1e4; //(kg/km2: 1e6 ~ kg/hm2: 1e4)
+real Klar = 20.0*1e6; 
+real r1 = 0.07*1e2; //0.05*1e2; //(1/(km*dia): 1e3 ~ 1/(hm*dia): 1e2)
+real r2 = 0.12; // (1/dia)  //taxa de crescimento da alga
+real b1 = 0.015; //(1/dia)
+real b2 = 0.002; //(1/dia)
+real b3 = 0.05; //0.02; //(1/(km*dia): 1 ~ 1/(hm*dia): 1e-1)  //taxa mortalidade da alga
+real c1 = 0.001*1e6; //(kg/km3: 1e9 ~ kg/hm3: 1e6)
+real c2 = 0.001*1e6; //(kg/km3: 1e9 ~ kg/hm3: 1e6)
+
+// Transformação: 1 m/s = 86400 m/dia = 86.4 km/dia = 864 hm/dia)
+Vh velx = u1*864;  //velocidade em x
+Vh vely = u2*864;  //velocidade em y
+
+//Definindo o numero de Peclet --- SUPG
+real normVinf = max(velx[].linfty,vely[].linfty);
+//real normVeuc = sqrt(velx^2 + vely^2);
+Vh hK = hTriangle;
+Vh PeKLarva = normVinf*hK/(2.0*DifL);
+real PecletLarva = PeKLarva[].max;
+Vh PeKAlga = normVinf*hK/(2.0*DifA);
+real PecletAlga = PeKAlga[].max;
+Vh tauSupgL = hTriangle*DifL/(2.0*normVinf);
+Vh tauSupgA = hTriangle*DifA/(2.0*normVinf);
+int iter, ii;
+
+problem Larva(L,v) = int2d(Th2D)(L*v/dt) 
+                    - int2d(Th2D)(Lant*v/dt)
+                    + int2d(Th2D)(DifL*Grad(L)'*Grad(v))
+                    + int2d(Th2D)((velx*dx(L) + vely*dy(L))*v)
+                    //metodo de difusao artificial classica
+                    + int2d(Th2D)(1e-3*normVinf*hTriangle*Grad(L)'*Grad(v))
+                   //lado direito
+                    - int2d(Th2D)( (r1*Mant*(1.0 - Lant/Klar))*v - (b1+lambdaL)*Lant*v )
+                    + on(inflow, L = 0.08*1e6);
+
+problem Mexilhao(M,w) = int2d(Th2D)(M*w/dt) 
+                    - int2d(Th2D)(Mant*w/dt)
+                    + int2d(Th2D)(DifM*Grad(M)'*Grad(w))
+                   //lado direito
+                    - int2d(Th2D)(lambdaM*Lant*(Aant^2/(c1^2 + Aant^2))*(1.0 - Mant/Kmex)*w  - b2*Mant*w)
+                    + on(inflow, M = 0.0) + on(outflow, M = 0.0) + on(intRig, M = 0.0) + on(intLef, M = 0.0) + on(intFluid, M = 0.0);
+                            
+problem Alga(A,v) = int2d(Th2D)(A*v/dt) 
+                    - int2d(Th2D)(Aant*v/dt)
+                    + int2d(Th2D)(DifA*Grad(A)'*Grad(v))
+                    + int2d(Th2D)((velx*dx(A) + vely*dy(A))*v)
+                    //metodo de difusao artificial classica
+                    + int2d(Th2D)(1e-3*normVinf*hTriangle*Grad(A)'*Grad(v))
+                   //lado direito
+                    - int2d(Th2D)( (r2*Aant*(1.0 - Aant/Kalg))*v - b3*(Aant^2/(c2^2 + Aant^2))*Mant*v )
+                    + on(inflow, A = 0.006*1e6);
+
+//condicoes iniciais
+
+Ainic = 0.001*1e6;
+Minic = 1*1e4;
+Linic = 0.02*1e6;
+
+for (ii = 0; ii <  Th2D.nt; ii++){
+	if (Th2D[ii].label == agua){
+		if (Th2D[ii][0].label == 0){
+			Minic[][Vh(ii,0)] = 0.0;
+		}
+		if (Th2D[ii][1].label == 0){
+			Minic[][Vh(ii,1)] = 0.0;
+		}
+		if (Th2D[ii][2].label == 0){
+			Minic[][Vh(ii,2)] = 0.0;
+		}
+	}
+}
+
+M = Minic;
+A = Ainic;
+L = Linic;
+
+savevtk("Paraview_Larva_Inicial.vtu", Th2D, Linic, dataname="Larva", order=Order, bin=0);
+savevtk("Paraview_Mexilhao_Inicial.vtu", Th2D, Minic, dataname="Mexilhao", order=Order, bin=0);
+savevtk("Paraview_Alga_Inicial.vtu", Th2D, Ainic, dataname="Alga", order=Order, bin=0);
+
+
+//Erros
+string ArqAlgaParaview, ArqLarvaParaview, ArqMexilhaoParaview;
+real erroM, erroA, erroL, erroMax;
+Vh  erA, erL, erM;
+Vh Aplot, Mplot, Lplot;
+
+erroMax = pow(10.0,-3.0);
+erroM = erroMax + 1.0;
+erroA = erroMax + 1.0;
+erroL = erroMax + 1.0;
+iter = 1;
+
+cout << "\n Calculando Sistema Larva-Mexilhao-Alga!" << endl;
+for(iter = 1; iter <= iterMax; iter++){
+	
+   for(jj = 0; jj < iterNonLinear; jj++){
+
+      for (ii = 0; ii <  Th2D.nt; ii++){
+	      if (Th2D[ii].label == agua){
+	   	   if (Th2D[ii][0].label == 0){
+	   		   M[][Vh(ii,0)] = 0.0;
+	   	   }
+	   	   if (Th2D[ii][1].label == 0){
+	   		   M[][Vh(ii,1)] = 0.0;
+	   	   }
+	   	   if (Th2D[ii][2].label == 0){
+	   		   M[][Vh(ii,2)] = 0.0;
+	   	   }
+	      }
+      }
+
+       Mant = M;
+       Aant = A;
+       Lant = L;
+		
+       Larva;
+       Mexilhao;
+       Alga;
+   }
+       //cout << "--- Iteracao temporal = " << iter << endl;
+       iter++;
+
+       //Calculo dos erros
+       erM = M - Mant;
+       erA = A - Aant;
+       erL = L - Lant;
+       erroM = erM[].linfty/M[].linfty;
+       erroA = erA[].linfty/A[].linfty;
+       erroL = erL[].linfty/L[].linfty;
+      
+       if(fmod(iter, 10) == 0){
+          cout << "--- Iteracao temporal = " << iter << endl;
+          cout << "--- Erro relativo norma infinito -- MEXILHAO = " << erroM << endl;
+          cout << "--- Erro relativo norma infinito -- ALGAS = " << erroA << endl;
+          cout << "--- Erro relativo norma infinito -- LARVAS = " << erroL << endl;
+       }
+
+   if((iter % 3000) == 0){
+      Aplot = A*1e-6; // voltar g/l
+      Mplot = M*1e-4; // g/m2
+      Lplot = L*1e-6; // voltar g/l
+      ArqLarvaParaview = "Paraview_Larva_"+teste+"_Passo"+iter+".vtu";
+      ArqMexilhaoParaview = "Paraview_Mexilhao_"+teste+"_Passo"+iter+".vtu";
+      ArqAlgaParaview = "Paraview_Alga_"+teste+"_Passo"+iter+".vtu";
+      savevtk(ArqLarvaParaview, Th2D, Lplot, dataname="Larva", order=Order, bin=0);
+      savevtk(ArqMexilhaoParaview, Th2D, Mplot, dataname="Mexilhao", order=Order, bin=0);
+      savevtk(ArqAlgaParaview, Th2D, Aplot, dataname="Alga", order=Order, bin=0);
+   }
+}
+
+//cout << "--- IterMax = " << iterMax << endl;
+//cout << "Peclet Larvas: " << PecletLarva << endl;
+//cout << "Peclet Algas: " << PecletAlga << endl;
+
+Aplot = A*1e-6; // voltar g/l
+Mplot = M*1e-4; // g/m2
+Lplot = L*1e-6; // voltar g/l
+
+//int[int] Order = [1];
+savevtk("Paraview_Larva_Final.vtu", Th2D, Lplot, dataname="Larva", order=Order, bin=0);
+savevtk("Paraview_Mexilhao_Final.vtu", Th2D, Mplot, dataname="Mexilhao", order=Order, bin=0);
+savevtk("Paraview_Alga_Final.vtu", Th2D, Aplot, dataname="Alga", order=Order, bin=0);
+cout << "\n Fim do calculo do sistema Larva-Mexilhao-Alga!" << endl;

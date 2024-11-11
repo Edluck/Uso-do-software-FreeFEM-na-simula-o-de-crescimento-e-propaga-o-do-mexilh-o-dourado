@@ -51,7 +51,7 @@ Para instalar o FreeFEM, consulte a [documentação oficial](https://freefem.org
 
 ---
 ## Experimentos Realizados
-Observar a pasta Experimentos deste Git, Nele existe 4 experimentos com diferentes formatos de domínio, detalhado tanto no relatório final e no artigo aqui disponibilizados.
+- Observar a pasta Experimentos deste Git, Nele existe 4 experimentos com diferentes formatos de domínio, detalhado tanto no relatório final e no artigo aqui disponibilizados.
 ---
 
 ## Configuração e Execução do Projeto
